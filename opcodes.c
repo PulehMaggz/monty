@@ -21,9 +21,6 @@ void push(stack_t **stack, unsigned int line_number, int value)
     if (*stack != NULL)
         (*stack)->prev = new_node; /* Link back to new node */
     *stack = new_node; /* Update the stack to the new top */
-
-    /* Suppress the unused parameter warning */
-    (void)line_number; 
 }
 
 /**
@@ -39,4 +36,19 @@ void pall(stack_t **stack)
         printf("%d\n", current->n);
         current = current->next;
     }
+}
+
+/**
+ * pint - Prints the value at the top of the stack
+ * @stack: Double pointer to the stack
+ * @line_number: The current line number in the bytecode file (for error messages)
+ */
+void pint(stack_t **stack, unsigned int line_number)
+{
+    if (*stack == NULL)
+    {
+        fprintf(stderr, "L%u: can't pint, stack empty\n", line_number);
+        exit(EXIT_FAILURE);
+    }
+    printf("%d\n", (*stack)->n);
 }

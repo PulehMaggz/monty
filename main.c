@@ -1,31 +1,30 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "monty.h"
 
+#define MAX_LINE_LENGTH 256
+
 /**
- * main - Entry point for the Monty interpreter
+ * main - Entry point of the Monty ByteCode interpreter
  * @argc: Argument count
  * @argv: Argument vector
  *
- * Return: Always 0 on success
+ * Return: EXIT_SUCCESS on success, EXIT_FAILURE on failure
  */
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
     FILE *file;
-    char *line = NULL;
-    size_t len = 0; /* Set initial length to 0 for fgets */
-    unsigned int line_number = 0;
-    stack_t *stack = NULL; /* Initialize the stack */
-    char *opcode;
-    char *arg;
-    int value; /* Declare value here */
+    char line[MAX_LINE_LENGTH];
+    stack_t *stack = NULL;
+    unsigned int line_number = 1;
 
-    /* Check for correct usage */
     if (argc != 2)
     {
         fprintf(stderr, "USAGE: monty file\n");
         exit(EXIT_FAILURE);
     }
 
-    /* Open the Monty bytecode file */
     file = fopen(argv[1], "r");
     if (file == NULL)
     {
@@ -33,43 +32,44 @@ int main(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    /* Read the file line by line using fgets */
-    while (fgets(line, len, file) != NULL)
+    while (fgets(line, sizeof(line), file))
     {
-        line_number++;
-        opcode = strtok(line, " \n\t");
-        if (opcode == NULL || opcode[0] == '#') /* Skip empty lines and comments */
-            continue;
+        char *opcode = strtok(line, " \n\t");
+        if (opcode == NULL)
+        {
+            line_number++;
+            continue;  // Skip empty lines
+        }
 
         if (strcmp(opcode, "push") == 0)
         {
-            arg = strtok(NULL, " \n\t");
-            if (arg == NULL || !atoi(arg))
+            char *arg = strtok(NULL, " \n\t");
+            if (arg == NULL || atoi(arg) == 0 && strcmp(arg, "0") != 0)
             {
                 fprintf(stderr, "L%u: usage: push integer\n", line_number);
-                free(line);
                 fclose(file);
                 exit(EXIT_FAILURE);
             }
-            value = atoi(arg); /* Convert string argument to integer */
-            push(&stack, line_number, value); /* Call push function */
+            int value = atoi(arg);
+            push(&stack, line_number, value);
         }
         else if (strcmp(opcode, "pall") == 0)
         {
-            pall(&stack); /* Call pall function */
+            pall(&stack);
+        }
+        else if (strcmp(opcode, "pint") == 0)
+        {
+            pint(&stack, line_number);
         }
         else
         {
             fprintf(stderr, "L%u: unknown instruction %s\n", line_number, opcode);
-            free(line);
             fclose(file);
             exit(EXIT_FAILURE);
         }
+        line_number++;
     }
 
-    /* Clean up */
-    free(line);
     fclose(file);
-    /* Free the stack (to be implemented) */
-    return 0;
+    return (EXIT_SUCCESS);
 }
