@@ -1,23 +1,56 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+ssize_t getline(char **lineptr, size_t *n, FILE *stream)
+{
+    size_t pos;
+    int c;
+
+    if (lineptr == NULL || n == NULL || stream == NULL)
+        return -1;
+
+    if (*lineptr == NULL)
+    {
+        *n = 128; /* Default initial size */
+        *lineptr = malloc(*n);
+        if (*lineptr == NULL)
+            return -1;
+    }
+
+    pos = 0;
+    while ((c = fgetc(stream)) != EOF)
+    {
+        if (pos + 1 >= *n)
+        {
+            *n *= 2;
+            *lineptr = realloc(*lineptr, *n);
+            if (*lineptr == NULL)
+                return -1;
+        }
+        (*lineptr)[pos++] = c;
+        if (c == '\n')
+            break;
+    }
+
+    if (pos == 0 && c == EOF)
+        return -1;
+
+    (*lineptr)[pos] = '\0';
+    return pos;
+}
+
 #include "monty.h"
 
-#define MAX_LINE_LENGTH 256
-
 /**
- * main - Entry point of the Monty ByteCode interpreter
- * @argc: Argument count
- * @argv: Argument vector
- *
- * Return: EXIT_SUCCESS on success, EXIT_FAILURE on failure
+ * main - Entry point for the Monty ByteCode interpreter.
+ * @argc: Number of arguments.
+ * @argv: Array of arguments.
+ * Return: 0 on success.
  */
 int main(int argc, char *argv[])
 {
     FILE *file;
-    char line[MAX_LINE_LENGTH];
+    char *line = NULL, *opcode, *arg;
+    size_t len = 0;
     stack_t *stack = NULL;
-    unsigned int line_number = 1;
+    unsigned int line_number = 0;
 
     if (argc != 2)
     {
@@ -26,50 +59,40 @@ int main(int argc, char *argv[])
     }
 
     file = fopen(argv[1], "r");
-    if (file == NULL)
+    if (!file)
     {
         fprintf(stderr, "Error: Can't open file %s\n", argv[1]);
         exit(EXIT_FAILURE);
     }
 
-    while (fgets(line, sizeof(line), file))
+    while (getline(&line, &len, file) != -1)
     {
-        char *opcode = strtok(line, " \n\t");
-        if (opcode == NULL)
-        {
-            line_number++;
-            continue;  // Skip empty lines
-        }
+        line_number++;
+        opcode = strtok(line, " \t\n");
+        if (!opcode || opcode[0] == '#') /* Skip comments and empty lines */
+            continue;
 
         if (strcmp(opcode, "push") == 0)
         {
-            char *arg = strtok(NULL, " \n\t");
-            if (arg == NULL || atoi(arg) == 0 && strcmp(arg, "0") != 0)
-            {
-                fprintf(stderr, "L%u: usage: push integer\n", line_number);
-                fclose(file);
-                exit(EXIT_FAILURE);
-            }
-            int value = atoi(arg);
-            push(&stack, line_number, value);
+            arg = strtok(NULL, " \t\n");
+            push(&stack, line_number, arg);
         }
         else if (strcmp(opcode, "pall") == 0)
         {
-            pall(&stack);
-        }
-        else if (strcmp(opcode, "pint") == 0)
-        {
-            pint(&stack, line_number);
+            pall(&stack, line_number);
         }
         else
         {
             fprintf(stderr, "L%u: unknown instruction %s\n", line_number, opcode);
+            free(line);
+            free_stack(stack);
             fclose(file);
             exit(EXIT_FAILURE);
         }
-        line_number++;
     }
 
+    free(line);
+    free_stack(stack);
     fclose(file);
-    return (EXIT_SUCCESS);
+    return (0);
 }
